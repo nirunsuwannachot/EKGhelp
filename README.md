@@ -1,4 +1,4 @@
-# HelpEKG
+<!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
@@ -44,15 +44,15 @@
 <body>
 
 <div class="card">
-    <h2>ตัวช่วยในการอ่าน EKG (รุ่น 2 ต้องผ่านหมด ✌🏻) </h2>
+    <h2>ตัวช่วยในการอ่าน EKG (รุ่นแก้ไข) ✌🏻</h2>
 
     <div class="section-title">1. วัดค่าและสัญญาณชีพ (Vitals & Intervals)</div>
     <div class="grid-inputs">
         <div><label>Heart Rate (bpm)</label><input type="number" id="hr" placeholder="60-100"></div>
         <div><label>PR Interval (sec)</label><input type="number" step="0.01" id="pr" placeholder="0.12-0.20"></div>
         <div><label>QRS Duration (sec)</label><input type="number" step="0.01" id="qrs" placeholder="< 0.12"></div>
-         <div><label>QTc (sec)</label><input type="number" step="0.01" id="qtc" placeholder="< 0.44"></div>
- <div><label>S ใน V1 (mm)</label><input type="number" id="sv1" placeholder="สำหรับ LVH"></div>
+        <div><label>QTc (sec)</label><input type="number" step="0.01" id="qtc" placeholder="< 0.44"></div>
+        <div><label>S ใน V1 (mm)</label><input type="number" id="sv1" placeholder="สำหรับ LVH"></div>
         <div><label>R ใน V5 หรือ V6 (mm)</label><input type="number" id="rv5" placeholder="สำหรับ LVH"></div>
         <div><label>R ใน V1 (mm)</label><input type="number" id="rv1" placeholder="สำหรับ RVH (> 7mm)"></div>
     </div>
@@ -98,7 +98,7 @@
 
 <script>
 const guides = {
-    afib: ["AF / A-Flutter", "• Irregularly Irregular rhythm<br>• No P waves (AF) หรือ Sawtooth waves (Flutter)<br>• ],
+    afib: ["AF / A-Flutter", "• Irregularly Irregular rhythm<br>• No P waves (AF) หรือ Sawtooth waves (Flutter)"],
     svt: ["SVT", "• Regular, Narrow QRS tachycardia<br>• HR มัก > 150 bpm<br>• มองไม่เห็น P wave"],
     vt: ["VT / VF", "• VT: Wide QRS, Regular, Fast (🚨 เช็ค Pulse ด่วน!)<br>• VF: Chaotic waves (🚨 เริ่ม CPR/Defib ทันที)"],
     avb2: ["2nd Degree AV Block", "• Mobitz I (Wenckebach): PR ยาวขึ้นเรื่อยๆ จน QRS หาย<br>• Mobitz II: PR คงที่ แต่มี QRS หายไปเป็นระยะ (อันตราย!)"],
@@ -120,11 +120,20 @@ function showGuide(key) {
 
 function closeModal() { document.getElementById('guideModal').style.display = "none"; }
 
+// ปิด Modal เมื่อคลิกข้างนอกหน้าต่าง
+window.onclick = function(event) {
+    let modal = document.getElementById('guideModal');
+    if (event.target == modal) { modal.style.display = "none"; }
+}
+
 function analyze() {
     let hr = document.getElementById("hr").value || "?";
-    let pr = parseFloat(document.getElementById("pr").value);
-    let qrs = parseFloat(document.getElementById("qrs").value);
-    let lvh_val = parseFloat(document.getElementById("lvh_val").value);
+    let pr = parseFloat(document.getElementById("pr").value) || 0;
+    let qrs = parseFloat(document.getElementById("qrs").value) || 0;
+    let sv1 = parseFloat(document.getElementById("sv1").value) || 0;
+    let rv5 = parseFloat(document.getElementById("rv5").value) || 0;
+    let rv1 = parseFloat(document.getElementById("rv1").value) || 0;
+    
     let l1 = document.getElementById("l1").value, l2 = document.getElementById("l2").value, avf = document.getElementById("avf").value;
 
     let diag = [];
@@ -136,7 +145,7 @@ function analyze() {
     else if (l1 === 'neg' && avf === 'pos') axisStr = "RAD";
     else if (l1 === 'neg' && avf === 'neg') axisStr = "Extreme Axis";
 
-    // Diagnosis Logic
+    // Diagnosis Logic จาก Checkbox
     if (document.getElementById("stemi").checked) { diag.push("STEMI"); isUrgent = true; }
     if (document.getElementById("vt").checked) { diag.push("VT/VF"); isUrgent = true; }
     if (document.getElementById("avb3").checked) { diag.push("3rd Deg AVB"); isUrgent = true; }
@@ -148,12 +157,14 @@ function analyze() {
     if (document.getElementById("rbbb").checked) diag.push("RBBB");
     if (document.getElementById("pe").checked) diag.push("PE (S1Q3T3)");
     
-    // Auto-check from values
-    if (pr > 0.20 && !document.getElementById("avb3").checked) diag.push("1st Deg AVB");
-    if (lvh_val >= 35) diag.push("LVH");
-    if (hr < 60 && diag.length === 0) diag.push("Sinus Bradycardia");
-    if (hr > 100 && diag.length === 0) diag.push("Sinus Tachycardia");
-    if (diag.length === 0) diag.push("NSR");
+    // Auto-check จากค่าตัวเลข
+    if (pr > 0.20 && !document.getElementById("avb3").checked && !document.getElementById("avb2").checked) diag.push("1st Deg AVB");
+    if ((sv1 + rv5) >= 35) diag.push("LVH");
+    if (rv1 > 7) diag.push("RVH");
+    if (hr !== "?" && hr < 60 && diag.length === 0) diag.push("Sinus Bradycardia");
+    if (hr !== "?" && hr > 100 && diag.length === 0) diag.push("Sinus Tachycardia");
+    
+    if (diag.length === 0) diag.push("NSR (Normal Sinus Rhythm)");
 
     let rhythmType = document.getElementById("afib").checked ? "Irregular" : "Regular";
 
@@ -163,13 +174,14 @@ function analyze() {
     // Display
     let box = document.getElementById("result");
     box.style.display = "block";
-    box.className = isUrgent ? "danger" : (diag.includes("NSR") ? "normal" : "warning");
+    box.className = isUrgent ? "danger" : (diag.includes("NSR (Normal Sinus Rhythm)") ? "normal" : "warning");
     document.getElementById("headline").innerText = mainHeadline;
     
     let detailsHTML = "<b>ข้อควรระวัง/แนะนำ:</b><ul>";
     if (isUrgent) detailsHTML += "<li>🚨 <b>EMERGENCY:</b> ภาวะวิกฤต เตรียมรถ Emergency และแจ้งทีมแพทย์ทันที</li>";
     if (diag.includes("Hyperkalemia")) detailsHTML += "<li>• พิจารณาให้ Ca Gluconate หาก QRS เริ่มกว้าง</li>";
     if (diag.includes("Wellens'")) detailsHTML += "<li>• <b>ห้ามทำ Exercise Stress Test!</b> ส่งสวนหัวใจโดยด่วน</li>";
+    if (diag.includes("LVH")) detailsHTML += "<li>• พบแรงดันไฟฟ้าหัวใจห้องล่างซ้ายโต (S in V1 + R in V5/V6 ≥ 35 mm)</li>";
     detailsHTML += "</ul>";
     document.getElementById("details").innerHTML = detailsHTML;
 }
